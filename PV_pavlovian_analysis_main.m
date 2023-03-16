@@ -190,14 +190,14 @@ if cluster
     % H index distribution
     tagging(CELLIDLIST,true)
     H_indices = nan(1,length(CELLIDLIST));
-    for n=1:length(CELLIDLIST)
+    for n = 1:length(CELLIDLIST)
         cellid = CELLIDLIST{n};
         [H_indices(n) ~] = nbisstim(cellid);
         disp(H_indices(n))
     end
     
     cells = CELLIDLIST; % Set H-indices for all neurons
-    for n=1:length(cells)
+    for n = 1:length(cells)
         st = setvalue(cells{n},'Hindex',H_indices(n));   
     end
     
