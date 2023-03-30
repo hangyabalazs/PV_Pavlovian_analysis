@@ -1,5 +1,5 @@
-function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, anatomy, recording, optogenetics)
-%PV_PAVLOVIAN_ANALYSIS_MAIN main data analysis funtion of PV-pavlovian project. 
+function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, anatomy, recording, fiber, optogenetics)
+%PV_PAVLOVIAN_ANALYSIS_MAIN main data analysis funtion of PV-pavlovian project.
 %   PV_PAVLOVIAN_ANALYSIS_MAIN(CHOOSECELLS, RESDIR, PREPROCESS, BEHAVIOR,
 %   ANATOMY, RECORDING, OPTOGENETICS) main data analysis function of in
 %   vivo recordings of PV+ basal forebrain neurons. The function calls
@@ -16,7 +16,8 @@ function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, a
 %   controls cluster quality statistics, average PETH, latency of
 %   punishment response, PETH partitioned by median splint of trials, PETH
 %   of response based on previous trial outcome and PETH showing burst and
-%   single spikes separately. OPTOGENETICS(1x2 logical) controls statistics
+%   single spikes separately. FIBER (1x1 logical) control analysis for fiber
+%   photometry recordings, OPTOGENETICS(1x2 logical) controls statistics
 %   for optogenetic inhibition.
 
 % Balazs Hangya, Panna Hegedus, 12/03/2023
@@ -25,7 +26,7 @@ function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, a
 
 
 % Input argument check
-narginchk(0,7)
+narginchk(0,8)
 if nargin < 1
     choosecells = 1;
 end
@@ -91,8 +92,13 @@ ms_preproc = recording(7);          % Data preprocessing
 preproc_prevtrials = recording(8);   % Response based on previous trial outcome
 burst_spikes = recording(9);        % PETH showing burst and single spikes separately
 
+% Fiber photometry analysis
+if nargin < 7
+    fiber_photometry = 1;
+end
+
 % Optogenetic experiment analysis
-if nargin < 6
+if nargin < 8
     optogenetics = [1 1];
 end
 
@@ -100,7 +106,7 @@ optoinh = optogenetics(1);      % Optogenetic inhibition
 singleplot = optogenetics(2);   % PETH for individual sessions
 
 %%% DATA PREPROCESSING %%%
-if response_analysis 
+if response_analysis
     
     % Grouping neurons based on their response during behavior - properties added to TheMatrix
     response_resdir = fullfile(resdir,'responsesorter');   % results directory
@@ -142,13 +148,13 @@ if lick_example % Plot behavior in individual sessions
     if ~isfolder(lick_raster_resdir) % Make folder if not exist
         mkdir(lick_raster_resdir)
     end
-
+    
     % Example lick PETH + raster
     for i =1:NumCells
         current_cell = cellids{i};
         [animal, session, ~, ~] = cellid2tags(current_cell);
         
-        figure;  
+        figure;
         viewlick({animal session},'TriggerName','StimulusOn','SortEvent','TrialStart','eventtype','behav',...
             'ShowEvents',{{'StimulusOn' 'StimulusOff'}}, 'sigma', 0.08,...
             'Partitions','#TrialType','window',[-5 5]   )% lick rasters aligned to stimulus onset
@@ -198,7 +204,7 @@ if cluster
     
     cells = CELLIDLIST; % Set H-indices for all neurons
     for n = 1:length(cells)
-        st = setvalue(cells{n},'Hindex',H_indices(n));   
+        st = setvalue(cells{n},'Hindex',H_indices(n));
     end
     
     H = Hindex_distribution(ntcells,cellids);
@@ -217,16 +223,16 @@ if cluster
 end
 
 % Example tagged cluster
-    [selcluster, neighborclusters, selLS] = example_cluster('HDB36_190512a_3.2');
-    fnm = fullfile(resdir_C, 'example_cluster.mat');
-    save(fnm,'selcluster','neighborclusters','selLS');
+[selcluster, neighborclusters, selLS] = example_cluster('HDB36_190512a_3.2');
+fnm = fullfile(resdir_C, 'example_cluster.mat');
+save(fnm,'selcluster','neighborclusters','selLS');
 
 % Average PETH of cue, reward and punishment response
 if avg_PSTH
     population = getcellresp(cellids); % group neurons based on their response
     
     resdir_avg_psth = fullfile(resdir, 'avg_PSTH_nonpart');
-    avg_psth_PV2(cellids,'cueresponse',resdir_avg_psth); 
+    avg_psth_PV2(cellids,'cueresponse',resdir_avg_psth);
     avg_psth_PV2(cellids,'rewardresponse',resdir_avg_psth);
     avg_psth_PV2(cellids,'punishresponse',resdir_avg_psth);
     avg_psth_PV2(cellids,'omissionresponse',resdir_avg_psth);
@@ -315,7 +321,7 @@ if burst_spikes
     burst_detection(cellids, 'single', resdir_avg_psth_burst) % Detecting single spikes
     avg_psth_PV(cellids, cellids, 'punishresponse',resdir_avg_psth_burst, 'burst'); % Average PETH
     acg_matrix = load(fullfile(resdir, 'ACG', 'ACG_matrices.mat'));
-   
+    
     % Plot refractory period against burst index
     figure;
     scatter(acg_matrix.Refractory, acg_matrix.BurstIndex, 'o')
@@ -415,7 +421,7 @@ if burst_spikes
     hold on
     scatter(ValleyToIntegral(b_inx), PeakToPostValleyTime(b_inx), 'ro')
     
-        inx1 = find((ValleyToIntegral >= 0.06) & (PeakToPostValleyTime <= 240));
+    inx1 = find((ValleyToIntegral >= 0.06) & (PeakToPostValleyTime <= 240));
     inx2 = find((ValleyToIntegral < 0.06) & (PeakToPostValleyTime > 240));
     inx3 = find(PeakToPostValleyTime <= 240);
     
@@ -459,6 +465,40 @@ if preproc_prevtrials
     keyboard
 end
 
+%%% FIBER PHOTOMETRY %%%
+if fiber_photometry
+    root_FF = 'E:\HDB_PV\HDB_PV_FF\Data'; % Where raw data is located
+    
+    resdir_FF_HDB = fullfile(resdir, 'FF_PETH' 'HDB'); % Results directory
+    resdir_FF_RSG = fullfile(resdir, 'FF_PETH' 'RSG');
+    resdir_FF_MS = fullfile(resdir, 'FF_PETH' 'MS');
+    resdir_FF_Hipp = fullfile(resdir, 'FF_PETH' 'Hipp');
+    
+    % HDB
+    recID_HDB = [{{'1A2' '211108' 'Ch2'}} {{'1A3' '211105' 'Ch2'}} {{'1A3' '211106' 'Ch2'}}...
+        {{'1A3' '211107' 'Ch2'}} {{'1A4' '211109' 'Ch1'}} {{'196HDBHipp1' '211217' 'Ch1'}}...
+        {{'196HDBHipp1' '211218' 'Ch1'}} {{'196HDBHipp1' '211219' 'Ch1'}} {{'196HDBHipp1' '211220' 'Ch2'}}...
+        {{'196HDBHipp1' '211221' 'Ch2'}} {{'196HDBHipp1' '211222' 'Ch2'}} {{'196HDBHipp1' '211223' 'Ch2'}}...
+        {{'196HDBHipp1' '211224' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch1'}} {{'1A2HDBMS4' '211231' 'Ch1'}}...
+        {{'198HDBMS5' '220102' 'Ch1'}} {{'PVHDBMS6' '220223' 'Ch1'}} {{'PVHDBRSG4' '220223' 'Ch1'}}...
+        {{'PVHDBRSG4' '220226' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_HDB, root_FF, resdir_FF, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    
+    % Retrosplenial cortex recording
+    recID_RSG = [{{'1A7' '211103' 'Ch2'}} {{'PVHDBRSG3' '220223' 'Ch2'}} ...
+        {{'PVHDBRSG3' '220225' 'Ch2'}} {{'PVHDBRSG4' '220223' 'Ch2'}} {{'PVHDBRSG4' '220226' 'Ch2'}}];
+    viewphotometry_avg_PV(recID_RSG,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    
+    % Medial septum
+    recID_MS = [{{'1A4' '211105' 'Ch2'}} {{'1A4' '211107' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch2'}}  {{'1A2HDBMS4' '211231' 'Ch2'}}...
+        {{'1A2HDBMS4' '220103' 'Ch2'}} {{'198HDBMS5' '220102' 'Ch2'}} {{'PVHDBMS6' '220223' 'Ch2'}} {{'PVHDBMS6' '220224' 'Ch2'}}];
+    viewphotometry_avg_PV(recID_MS,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    
+    % Hippocampus
+    recID_Hipp = [{{'196HDBHipp1' '211220' 'Ch1'}}  {{'196HDBHipp1' '211221' 'Ch1'}}  {{'196HDBHipp1' '211220' 'Ch1'}}  {{'PVHDBHipp3' '220223' 'Ch1'}}...
+        {{'PVHDBHipp3' '220224' 'Ch1'}}  {{'PVHDBHipp4' '220223' 'Ch2'}}  {{'PVHDBHipp4' '220224' 'Ch2'}}  {{'PVHDBHipp4' '220225' 'Ch2'}}  {{'PVHDBHipp4' '220226' 'Ch2'}}];
+    viewphotometry_avg_PV(recID_Hipp,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+end
 
 %%% OPTOGENETIC INHIBITION DURING PAVLOVIAN CONDIITONING %%%
 if optoinh
@@ -591,7 +631,7 @@ if optoinh
     err1 = std(Control_diff)/sqrt(length(Control_diff));
     err2 = std(ArchT_diff)/sqrt(length(ArchT_diff));
     errorbar([1 2], [mean(Control_diff) mean(ArchT_diff)], [err1 err2],[err1 err2])
-
+    
     %CDF of reaction times
     % Control animals
     figure; cdfplot(Control_RT1);
@@ -603,7 +643,7 @@ if optoinh
     hold on
     cdfplot(ArchT_RT2);
     
-    % CDF of reaction time differences    
+    % CDF of reaction time differences
     figure;
     cdfplot(diff_RT_Ctrl);
     hold on
