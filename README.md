@@ -23,7 +23,7 @@ This repository contains MATLAB code for analyzing data collected from mice perf
 
 - Download the .m file of this package and dependent packages (see dependencies below).
 - Add directories (with subdirectories) with the downloaded .m files to the Matlab path.
-- Download the example data set.
+- Download the sample data set from https://doi.org/10.6084/m9.figshare.22776776.v1.
 - Run mountcb.m. Name the mounted Cellbase 'PV_pavlovian'. When prompted to 'locate CellBase database file', locate and choose the cellbase.mat file from the example data. Choose 'CellBase' for the time stamp conversion question.
 - A typical installation takes about 10 minutes. 
 
