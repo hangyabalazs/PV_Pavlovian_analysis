@@ -24,15 +24,17 @@ This repository contains MATLAB code for analyzing data collected from mice perf
 - Download the .m file of this package and dependent packages (see dependencies below).
 - Add directories (with subdirectories) with the downloaded .m files to the Matlab path.
 - Download the example data set.
-- Run mountcb.m. Name the mounted Cellbase 'PV_pavlovian'. When prompted to 'locate CellBase database file', choose the cellbase.mat file from the example data. Choose 'CellBase' for the time stamp conversion question.
+- Run mountcb.m. Name the mounted Cellbase 'PV_pavlovian'. When prompted to 'locate CellBase database file', locate and choose the cellbase.mat file from the example data. Choose 'CellBase' for the time stamp conversion question.
 - A typical installation takes about 10 minutes. 
 
 ## Demo
 
 - Create a directory for the saved files.
-- After installation, call PV_pavlovian_analysis_main(1, <save dir>  , [1 1 1 1 1], [1 1], 1, [1 1 1 1 1 1 1 1 1], [1 1]) from the Command Window.
+- Download the example data set. We refer to the full path where the fiber photometry data is located on your computer as <data folder1>, and the path for the optogenetic inhibition data as <data folder2>.
+- After installation, call PV_pavlovian_analysis_main(1, [1 1 1 1 1], [1 1], 1, [1 1 1 1 1 1 1 1 1], 1, [1 1], <data folder1>, <data folder2>) from the Command Window.
 - For expected output, type help PV_pavlovian_analysis_main.
-- Typical run time on demo data: 10 minutes.
+- Results will be saved in a 'data_analysis' folder in the CellBase directory of the sample data.
+- Typical run time on demo data: 180 minutes.
 
 ## Instructions for use
 
@@ -53,6 +55,8 @@ Any Intel or AMD x86-64 processor
 8 GB RAM  
 MatlabR2016a or higher  
 MATLAB Statistics Toolbox  
+
+The code was also tested on Windows 10 64bits, Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz, 2208 MHz, 6 cores, 16 GB RAM, MATLAB R2020b.
 
 Please contact us with any questions, bug reports, and general feedback:
 
