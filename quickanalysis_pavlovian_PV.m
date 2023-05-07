@@ -25,7 +25,7 @@ dbstop if error
 
 % Make results directory if not exist
 if nargin < 2
-    resdir = getpref('cellbase','datapath');
+    resdir = getpref('cellbase','datapath', 'quickanalysis');
 end
 
 if ~isdir(resdir)
@@ -79,18 +79,6 @@ for iC = 1:length(cellids)
     fnm = fullfile(resdir,[cellidt '_Punishment.jpg']);   % save
     saveas(I,fnm)
     close(I)
-    
-     % Median split
-    J = figure;
-    pause(0.01)
-    viewcell2b(cellid,'TriggerName','DeliverAllFeedback','SortEvent','TrialStart','sigma', 0.07,'eventtype','behav','ShowEvents',{{'StimulusOn'}},'Partitions','#MedialSplit','window',[-3 3])
-    maximize_figure(J)
-    
-    cellidt = char(cellid);
-    cellidt(cellidt=='.') = '_';
-    fnm = fullfile(resdir,[cellidt '_MedianSplit.jpg']);   % save
-    saveas(J,fnm)
-    close(J)
 end
 
 

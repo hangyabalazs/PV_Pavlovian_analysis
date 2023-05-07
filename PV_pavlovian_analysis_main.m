@@ -1,4 +1,4 @@
-function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, anatomy, recording, fiber, optogenetics)
+function PV_pavlovian_analysis_main(choosecells, preprocess, behavior, anatomy, recording, fiber_photometry, optogenetics, root_opto, root_FF)
 %PV_PAVLOVIAN_ANALYSIS_MAIN main data analysis funtion of PV-pavlovian project.
 %   PV_PAVLOVIAN_ANALYSIS_MAIN(CHOOSECELLS, RESDIR, PREPROCESS, BEHAVIOR,
 %   ANATOMY, RECORDING, OPTOGENETICS) main data analysis function of in
@@ -19,6 +19,11 @@ function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, a
 %   single spikes separately. FIBER (1x1 logical) control analysis for fiber
 %   photometry recordings, OPTOGENETICS(1x2 logical) controls statistics
 %   for optogenetic inhibition.
+%
+%   This function generates peri-event time histograms (PETHs) of
+%   individual and average neuronal activity, as well as auto- and
+%   cross-correlograms and correlations. Figures saved by this function
+%   were used to prepare the figures of the manuscript.
 
 % Balazs Hangya, Panna Hegedus, 12/03/2023
 % Institut of Experimental Medicine, Budapest
@@ -26,7 +31,7 @@ function PV_pavlovian_analysis_main(choosecells, resdir, preprocess, behavior, a
 
 
 % Input argument check
-narginchk(0,8)
+narginchk(0,9)
 if nargin < 1
     choosecells = 1;
 end
@@ -34,7 +39,8 @@ end
 if choosecells % If you want to perform analysis of in vivo recordings, you need to choose cells
     choosecb('PV_pavlovian')   % choose CellBase
     
-    % Getting cellids for VP neurons
+    % Getting cellids 
+    cellids = [];
     loadcb % load chosen CellBase
     cellids_all = select_pv_cells(cellids); % select PV+ cells from CELLIDLIST of chosen CellBase
     cellids = setdiff(cellids_all, {'HDB23_180221a_5.2' 'HDB17_170810a_4.1'}); % remove cells with poor tagging
@@ -43,16 +49,14 @@ if choosecells % If you want to perform analysis of in vivo recordings, you need
     NumCells = length(cellids); % use the subset with good cluster quality
 end
 
-if nargin < 2 % Create direcotry where results are saved
     resdir = fullfile(getpref('cellbase','datapath'), '_data_analysis');
     if ~isfolder(resdir) % make results directory if not exist
         mkdir(resdir)
     end
-end
 
 % Control which analysis modules to perform
 % Preprocess
-if nargin < 3
+if nargin < 2
     preprocess = [1 1 1 1 1];
 end
 
@@ -63,7 +67,7 @@ tagging_stat = preprocess(4);  % Tagging statistics
 perform_quickanalysis = preprocess(5);   % PETH for individual neurons
 
 % Behavior analysis
-if nargin < 4
+if nargin < 3
     behavior = [1 1];
 end
 
@@ -71,15 +75,15 @@ lick_example = behavior(1);   % example lick PETH and raster
 lick_average = behavior(2);   % average lick PETH and raster
 
 % Anatomical location
-if nargin < 5
+if nargin < 4
     anatomy = [1];
 end
 
 loc = anatomy(1);
 
 % In vivo recording analysis
-if nargin < 6
-    recording = [1 1 1 1 1 1 1 1];
+if nargin < 5
+    recording = [1 1 1 1 1 1 1 1 1];
 end
 
 cluster = recording(1);             % Cluster quality statistics
@@ -93,17 +97,25 @@ preproc_prevtrials = recording(8);   % Response based on previous trial outcome
 burst_spikes = recording(9);        % PETH showing burst and single spikes separately
 
 % Fiber photometry analysis
-if nargin < 7
+if nargin < 6
     fiber_photometry = 1;
 end
 
 % Optogenetic experiment analysis
-if nargin < 8
+if nargin < 7
     optogenetics = [1 1];
 end
 
 optoinh = optogenetics(1);      % Optogenetic inhibition
 singleplot = optogenetics(2);   % PETH for individual sessions
+
+if nargin < 8
+    root_opto = 'F:\HDB_PV\Test_data\Optogenetic_inhibition';
+end
+
+if nargin < 9
+    root_FF = 'F:\HDB_PV\Test_data\Fiber_photometry';
+end
 
 %%% DATA PREPROCESSING %%%
 if response_analysis
@@ -177,10 +189,10 @@ end
 
 %%% ANATOMICAL LOCATION %%%
 if loc % Add tetrode position log (cell location) to cellbase
-    insertdata('H:\_personal\auditory_pavlovian_PV_cellbase\_data_analysis\anatomy\cell_location\PV_neuron_location_AP.xlsx','type','prop','name','AP')
-    insertdata('H:\_personal\auditory_pavlovian_PV_cellbase\_data_analysis\anatomy\cell_location\PV_neuron_location_DV.xlsx','type','prop','name','DV')
-    insertdata('H:\_personal\auditory_pavlovian_PV_cellbase\_data_analysis\anatomy\cell_location\PV_neuron_location_L.xlsx','type','prop','name','L')
-    insertdata('H:\_personal\auditory_pavlovian_PV_cellbase\_data_analysis\anatomy\cell_location\PV_neuron_location_Area.xlsx','type','prop','name','Area1')
+    insertdata('F:\HDB_PV\Test_data\Anatomy\PV_neuron_location_AP.xlsx','type','prop','name','AP');
+    insertdata('F:\HDB_PV\Test_data\Anatomy\PV_neuron_location_DV.xlsx','type','prop','name','DV');
+    insertdata('F:\HDB_PV\Test_data\Anatomy\PV_neuron_location_L.xlsx','type','prop','name','L');
+    insertdata('F:\HDB_PV\Test_data\Anatomy\PV_neuron_location_Area.xlsx','type','prop','name','Area1');
 end
 
 %%% RECORDING ANALYSIS %%%
@@ -220,12 +232,13 @@ if cluster
     
     % Color coded PSTH for light stimulation
     PV_lightpsth_colored(cellids,fullfile(resdir,'taggingsummary'), resdir_C);
+    
+    % Example tagged cluster
+    [selcluster, neighborclusters, selLS] = example_cluster('HDB36_190512a_3.2');
+    fnm = fullfile(resdir_C, 'example_cluster.mat');
+    save(fnm,'selcluster','neighborclusters','selLS');
 end
 
-% Example tagged cluster
-[selcluster, neighborclusters, selLS] = example_cluster('HDB36_190512a_3.2');
-fnm = fullfile(resdir_C, 'example_cluster.mat');
-save(fnm,'selcluster','neighborclusters','selLS');
 
 % Average PETH of cue, reward and punishment response
 if avg_PSTH
@@ -467,37 +480,27 @@ end
 
 %%% FIBER PHOTOMETRY %%%
 if fiber_photometry
-    root_FF = 'E:\HDB_PV\HDB_PV_FF\Data'; % Where raw data is located
     
-    resdir_FF_HDB = fullfile(resdir, 'FF_PETH' 'HDB'); % Results directory
-    resdir_FF_RSG = fullfile(resdir, 'FF_PETH' 'RSG');
-    resdir_FF_MS = fullfile(resdir, 'FF_PETH' 'MS');
-    resdir_FF_Hipp = fullfile(resdir, 'FF_PETH' 'Hipp');
+    resdir_FF_HDB = fullfile(resdir, 'FF_PETH', 'HDB'); % Results directory
+    resdir_FF_RSG = fullfile(resdir, 'FF_PETH', 'RSG');
+    resdir_FF_MS = fullfile(resdir, 'FF_PETH', 'MS');
+    resdir_FF_Hipp = fullfile(resdir, 'FF_PETH', 'Hipp');
     
     % HDB
-    recID_HDB = [{{'1A2' '211108' 'Ch2'}} {{'1A3' '211105' 'Ch2'}} {{'1A3' '211106' 'Ch2'}}...
-        {{'1A3' '211107' 'Ch2'}} {{'1A4' '211109' 'Ch1'}} {{'196HDBHipp1' '211217' 'Ch1'}}...
-        {{'196HDBHipp1' '211218' 'Ch1'}} {{'196HDBHipp1' '211219' 'Ch1'}} {{'196HDBHipp1' '211220' 'Ch2'}}...
-        {{'196HDBHipp1' '211221' 'Ch2'}} {{'196HDBHipp1' '211222' 'Ch2'}} {{'196HDBHipp1' '211223' 'Ch2'}}...
-        {{'196HDBHipp1' '211224' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch1'}} {{'1A2HDBMS4' '211231' 'Ch1'}}...
-        {{'198HDBMS5' '220102' 'Ch1'}} {{'PVHDBMS6' '220223' 'Ch1'}} {{'PVHDBRSG4' '220223' 'Ch1'}}...
-        {{'PVHDBRSG4' '220226' 'Ch1'}}];
-    viewphotometry_avg_PV(recID_HDB, root_FF, resdir_FF, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    recID_HDB = [ {{'1A3' '211105' 'Ch2'}} {{'196HDBHipp1' '211217' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_HDB, root_FF, resdir_FF_HDB, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
     
     % Retrosplenial cortex recording
-    recID_RSG = [{{'1A7' '211103' 'Ch2'}} {{'PVHDBRSG3' '220223' 'Ch2'}} ...
-        {{'PVHDBRSG3' '220225' 'Ch2'}} {{'PVHDBRSG4' '220223' 'Ch2'}} {{'PVHDBRSG4' '220226' 'Ch2'}}];
-    viewphotometry_avg_PV(recID_RSG,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    recID_RSG = [{{'1A7' '211203a' 'Ch2'}} {{'PVHDBRSG3' '220223' 'Ch2'}}];
+    viewphotometry_avg_PV(recID_RSG, root_FF, resdir_FF_RSG,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
     
     % Medial septum
-    recID_MS = [{{'1A4' '211105' 'Ch2'}} {{'1A4' '211107' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch2'}}  {{'1A2HDBMS4' '211231' 'Ch2'}}...
-        {{'1A2HDBMS4' '220103' 'Ch2'}} {{'198HDBMS5' '220102' 'Ch2'}} {{'PVHDBMS6' '220223' 'Ch2'}} {{'PVHDBMS6' '220224' 'Ch2'}}];
-    viewphotometry_avg_PV(recID_MS,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    recID_MS = [{{'1A4' '211105' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch2'}}  {{'1A2HDBMS4' '211231' 'Ch2'}}];
+    viewphotometry_avg_PV(recID_MS, root_FF, resdir_FF_MS, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
     
     % Hippocampus
-    recID_Hipp = [{{'196HDBHipp1' '211220' 'Ch1'}}  {{'196HDBHipp1' '211221' 'Ch1'}}  {{'196HDBHipp1' '211220' 'Ch1'}}  {{'PVHDBHipp3' '220223' 'Ch1'}}...
-        {{'PVHDBHipp3' '220224' 'Ch1'}}  {{'PVHDBHipp4' '220223' 'Ch2'}}  {{'PVHDBHipp4' '220224' 'Ch2'}}  {{'PVHDBHipp4' '220225' 'Ch2'}}  {{'PVHDBHipp4' '220226' 'Ch2'}}];
-    viewphotometry_avg_PV(recID_Hipp,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    recID_Hipp = [{{'196HDBHipp1' '211220' 'Ch1'}} {{'PVHDBHipp3' '220224' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_Hipp, root_FF, resdir_FF_Hipp, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
 end
 
 %%% OPTOGENETIC INHIBITION DURING PAVLOVIAN CONDIITONING %%%
@@ -505,7 +508,7 @@ if optoinh
     resdir_optoinh = fullfile(resdir, 'Opto_inhibition', 'Single_plots'); % Results directory
     subresdir_Control = fullfile(resdir_optoinh, 'Control'); % Control subfolder in single plots
     subresdir_ArchT = fullfile(resdir_optoinh, 'ArchT'); % ArchT subfolder in single plots
-    root = 'E:\HDB_PV\auditory_pavlovian_PV_cellbase\_data_analysis\_ArchT_pavlovian\Analysis\Data2Use'; % Root directory where data is saved
+    root = root_opto; % Root directory where data is saved
     
     % Make results directory if not exist
     if ~isfolder(resdir_optoinh)
