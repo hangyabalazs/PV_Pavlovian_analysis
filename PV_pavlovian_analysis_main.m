@@ -1,4 +1,4 @@
-function PV_pavlovian_analysis_main(choosecells, preprocess, behavior, anatomy, recording, fiber_photometry, optogenetics, root_opto, root_FF)
+function PV_pavlovian_analysis_main(choosecells, preprocess, behavior, anatomy, recording, fiber_photometry, optogenetics, root_opto, root_FF, root_FF_SOM)
 %PV_PAVLOVIAN_ANALYSIS_MAIN main data analysis funtion of PV-pavlovian project.
 %   PV_PAVLOVIAN_ANALYSIS_MAIN(CHOOSECELLS, RESDIR, PREPROCESS, BEHAVIOR,
 %   ANATOMY, RECORDING, OPTOGENETICS) main data analysis function of in
@@ -31,7 +31,7 @@ function PV_pavlovian_analysis_main(choosecells, preprocess, behavior, anatomy, 
 
 
 % Input argument check
-narginchk(0,9)
+narginchk(0,10)
 if nargin < 1
     choosecells = 1;
 end
@@ -83,7 +83,7 @@ loc = anatomy(1);
 
 % In vivo recording analysis
 if nargin < 5
-    recording = [1 1 1 1 1 1 1 1 1];
+    recording = [1 1 1 1 1 1 1 1 1,1];
 end
 
 cluster = recording(1);             % Cluster quality statistics
@@ -95,6 +95,7 @@ msplit = recording(6);              % PETH of partitioned by median splint of tr
 ms_preproc = recording(7);          % Data preprocessing
 preproc_prevtrials = recording(8);   % Response based on previous trial outcome
 burst_spikes = recording(9);        % PETH showing burst and single spikes separately
+popclust = recording(10);           % Cluster analysis on the PETHs of the neurons to find group of neurons behaving similar ways
 
 % Fiber photometry analysis
 if nargin < 6
@@ -115,6 +116,10 @@ end
 
 if nargin < 9
     root_FF = 'F:\HDB_PV\Test_data\Fiber_photometry';
+end
+
+if nargin < 10
+    root_FF_SOM = 'F:\SOM\Fiber_photometry';
 end
 
 %%% DATA PREPROCESSING %%%
@@ -142,7 +147,6 @@ if perform_ccg
 end
 
 % Tagging efficiency
-impdir_LS = fullfile(resdir,'taggedprop');
 if tagging_stat
     taggedprop(cellids, true);
 end
@@ -169,7 +173,7 @@ if lick_example % Plot behavior in individual sessions
         figure;
         viewlick({animal session},'TriggerName','StimulusOn','SortEvent','TrialStart','eventtype','behav',...
             'ShowEvents',{{'StimulusOn' 'StimulusOff'}}, 'sigma', 0.08,...
-            'Partitions','#TrialType','window',[-5 5]   )% lick rasters aligned to stimulus onset
+            'Partitions','#TrialType','window',[-3 3]   )% lick rasters aligned to stimulus onset
         fnm = fullfile(lick_raster_resdir, [animal '_' session '.jpg']);
         fnm2 = fullfile(lick_raster_resdir, [animal '_' session '.fig']);
         set(gcf, 'renderer', 'painters');
@@ -210,7 +214,7 @@ if cluster
     H_indices = nan(1,length(CELLIDLIST));
     for n = 1:length(CELLIDLIST)
         cellid = CELLIDLIST{n};
-        [H_indices(n) ~] = nbisstim(cellid);
+        [H_indices(n), ~] = nbisstim(cellid);
         disp(H_indices(n))
     end
     
@@ -229,7 +233,8 @@ if cluster
     
     % Latency and jitter CDF for light activation
     PV_R_L_J(cellids, resdir_C, 'tag', true)
-    
+    PV_R_L_J(cellids, resdir_C, 'pun', true)
+        
     % Color coded PSTH for light stimulation
     PV_lightpsth_colored(cellids,fullfile(resdir,'taggingsummary'), resdir_C);
     
@@ -324,7 +329,7 @@ if msplit
     end
     
     resdir_avg_psth_mediansplit = fullfile(resdir, 'avg_mediansplit'); % Results directory
-    avg_psth_expectation_PV(cellids, 'mediansplit', 'none', resdir_avg_psth_mediansplit, 'real'); % avg PETH
+    avg_psth_expectation_PV(population.punishment.excitation, 'mediansplit', 'none', resdir_avg_psth_mediansplit, 'real'); % avg PETH
 end
 
 % Plot burst and single spikes separately
@@ -478,29 +483,60 @@ if preproc_prevtrials
     keyboard
 end
 
+if popclust
+    Pop_PETH_Cluster
+end
+
 %%% FIBER PHOTOMETRY %%%
 if fiber_photometry
     
-    resdir_FF_HDB = fullfile(resdir, 'FF_PETH', 'HDB'); % Results directory
+    resdir_FF_1stAP = fullfile(resdir, 'FF_PETH', '1stAP'); % Results directory
+    resdir_FF_ = fullfile(resdir, 'FF_PETH', 'HDB'); % Results directory
     resdir_FF_RSG = fullfile(resdir, 'FF_PETH', 'RSG');
     resdir_FF_MS = fullfile(resdir, 'FF_PETH', 'MS');
     resdir_FF_Hipp = fullfile(resdir, 'FF_PETH', 'Hipp');
+     resdir_FF_SOM = fullfile(resdir, 'FF_PETH', 'SOM');
     
+    % Aversive stimulus - HDB %
+    % first air pufs
+    recID_HDB_1stses = [{{'1A2' '211108' 'Ch2'}} {{'1A3' '211105' 'Ch2'}}   {{'1A4' '211109' 'Ch1'}} {{'196HDBHipp1' '211217' 'Ch1'}} {{'1A2HDBMS4' '211230' 'Ch1'}} {{'198HDBMS5' '220102' 'Ch1'}} {{'PVHDBMS6' '220223' 'Ch1'}} {{'PVHDBRSG4' '220223' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_HDB_1stses, root_FF, resdir_FF_1stAP, 'isjustfirsttrial', true, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    viewphotometry_avg_PV(recID_HDB_1stses, root_FF, resdir_FF_1stAP, 'isjustfirsttrial', false, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    % footschock
+    Footshock_avgPSTH_PV 
+    % fox odor
+    viewphotometry_fox_odor([root_FF,'\','Fox_odor'], 'PV') % fox odor
+    
+    % Negative Feedback %
     % HDB
-    recID_HDB = [ {{'1A3' '211105' 'Ch2'}} {{'196HDBHipp1' '211217' 'Ch1'}}];
-    viewphotometry_avg_PV(recID_HDB, root_FF, resdir_FF_HDB, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    recID_HDB = [{{'1A2' '211108' 'Ch2'}} {{'1A3' '211105' 'Ch2'}} {{'1A3' '211106' 'Ch2'}} {{'1A3' '211107' 'Ch2'}} {{'1A4' '211109' 'Ch1'}} {{'196HDBHipp1' '211217' 'Ch1'}}  {{'196HDBHipp1' '211218' 'Ch1'}} {{'196HDBHipp1' '211219' 'Ch1'}} {{'196HDBHipp1' '211220' 'Ch2'}} {{'196HDBHipp1' '211221' 'Ch2'}} {{'196HDBHipp1' '211222' 'Ch2'}} {{'196HDBHipp1' '211223' 'Ch2'}} {{'196HDBHipp1' '211224' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch1'}} {{'1A2HDBMS4' '211231' 'Ch1'}} {{'198HDBMS5' '220102' 'Ch1'}} {{'PVHDBMS6' '220223' 'Ch1'}} {{'PVHDBRSG4' '220223' 'Ch1'}} {{'PVHDBRSG4' '220226' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_HDB, root_FF, resdir_FF_, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
     
     % Retrosplenial cortex recording
-    recID_RSG = [{{'1A7' '211203a' 'Ch2'}} {{'PVHDBRSG3' '220223' 'Ch2'}}];
-    viewphotometry_avg_PV(recID_RSG, root_FF, resdir_FF_RSG,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+    recID_RSG = [{{'1A7' '211203a' 'Ch2'}} {{'PVHDBRSG3' '220223' 'Ch2'}} {{'PVHDBRSG3' '220225' 'Ch2'}}  {{'PVHDBRSG4' '220223' 'Ch2'}} {{'PVHDBRSG4' '220226' 'Ch2'}}];
+    viewphotometry_avg_PV(recID_RSG, root_FF, resdir_FF_RSG,'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#Punishment','Signal','dff_A');
     
     % Medial septum
-    recID_MS = [{{'1A4' '211105' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch2'}}  {{'1A2HDBMS4' '211231' 'Ch2'}}];
+    recID_MS =  [{{'1A4' '211105' 'Ch2'}} {{'1A4' '211107' 'Ch2'}} {{'1A2HDBMS4' '211230' 'Ch2'}} {{'1A2HDBMS4' '211231' 'Ch2'}} {{'1A2HDBMS4' '220103' 'Ch2'}} {{'198HDBMS5' '220102' 'Ch2'}} {{'PVHDBMS6' '220223' 'Ch2'}} {{'PVHDBMS6' '220224' 'Ch2'}}];
     viewphotometry_avg_PV(recID_MS, root_FF, resdir_FF_MS, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
     
     % Hippocampus
-    recID_Hipp = [{{'196HDBHipp1' '211220' 'Ch1'}} {{'PVHDBHipp3' '220224' 'Ch1'}}];
+    recID_Hipp = [{{'196HDBHipp1' '211220' 'Ch1'}}  {{'196HDBHipp1' '211221' 'Ch1'}}  {{'196HDBHipp1' '211220' 'Ch1'}}  {{'PVHDBHipp3' '220223' 'Ch1'}}  {{'PVHDBHipp3' '220224' 'Ch1'}}  {{'PVHDBHipp4' '220223' 'Ch2'}}  {{'PVHDBHipp4' '220224' 'Ch2'}}  {{'PVHDBHipp4' '220225' 'Ch2'}}  {{'PVHDBHipp4' '220226' 'Ch2'}}];
     viewphotometry_avg_PV(recID_Hipp, root_FF, resdir_FF_Hipp, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
+
+    % SOM - HDB
+    lick_psth_summary_FF
+    recID_SOM = [{{'SOM-HDB3' '230807a' 'Ch1'}} {{'SOM-HDB3' '230808a' 'Ch1'}} {{'SOM-HDB3' '230809a' 'Ch1'}} ...
+     {{'SOM-HDB3' '230810a' 'Ch1'}} {{'SOM-HDB3' '230811a' 'Ch1'}} {{'SOM-HDB4' '230802a' 'Ch1'}} ...
+    {{'SOM-HDB4' '230803a' 'Ch1'}} {{'SOM-HDB4' '230804a' 'Ch1'}} {{'SOM-HDB4' '230807a' 'Ch1'}}...
+    {{'SOM-HDB4' '230808a' 'Ch1'}} {{'SOM-HDB5' '230802a' 'Ch1'}} {{'SOM-HDB5' '230803a' 'Ch1'}}...
+    {{'SOM-HDB5' '230804a' 'Ch1'}} {{'SOM-HDB5' '230807a' 'Ch1'}} {{'SOM-HDB5' '230808a' 'Ch1'}}...
+    {{'SOM-HDB6' '230802a' 'Ch1'}} {{'SOM-HDB6' '230803a' 'Ch1'}} {{'SOM-HDB6' '230804a' 'Ch1'}}...
+    {{'SOM-HDB6' '230807a' 'Ch1'}} {{'SOM-HDB6' '230808a' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_SOM, root_FF_SOM, resdir_FF_SOM, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#Punishment','Signal','dff_A');
+    viewphotometry_avg_PV(recID_SOM, root_FF_SOM, resdir_FF_SOM, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#AllReward','Signal','dff_A');
+    viewphotometry_avg_PV(recID_SOM, root_FF_SOM, resdir_FF_SOM, 'TriggerEvent','StimulusOn','SortEvent','TrialStart','Partitions','#TrialType','Signal','dff_A');
+
 end
 
 %%% OPTOGENETIC INHIBITION DURING PAVLOVIAN CONDIITONING %%%
@@ -567,20 +603,20 @@ if optoinh
                 fnm = fullfile(resdir_singleplot,[c_animal '_' c_sessions{j} '_LR' horzcat('_',ControlOrNot) '.jpg']);% save
                 saveas(H,fnm)
                 close(H)
-            end
+             end
         end
     end
     
     % Average lick PSTH plot for different training stages in control and ArchT animals
-    resdir_box = fullfile(resdir, 'Opto_inhibition_1200ms_win'); % Results directory
-    [SummaryDataOutputArchT, Hit_psth_ArchT, FA_psth_ArchT] = lick_psth_summary_PV([], root, resdir_box, 'ArchT');
-    [SummaryDataOutputControl, Hit_psth_Control, FA_psth_Control] = lick_psth_summary_PV([], root, resdir_box, 'Control');
+    resdir_box = fullfile(resdir, 'Opto_inhibition_rew5'); % Results directory
+    [SummaryDataOutputArchT5, Hit_psth_ArchT, FA_psth_ArchT] = lick_psth_summary_PV([], root, resdir_box, 'ArchT','TrialType');
+    [SummaryDataOutputControl5, Hit_psth_Control, FA_psth_Control] = lick_psth_summary_PV([], root, resdir_box, 'Control','TrialType');
     
     % Difference of reaction time to cue1 and cue2 in control and ArchT animals
-    ArchT_RT1 = [SummaryDataOutputArchT.AnimalAverageRT1]; % ArchT and Control reaction times
-    ArchT_RT2 = [SummaryDataOutputArchT.AnimalAverageRT2];
-    Control_RT1 = [SummaryDataOutputControl.AnimalAverageRT1];
-    Control_RT2 = [SummaryDataOutputControl.AnimalAverageRT2];
+    ArchT_RT1 = [SummaryDataOutputArchT5.AnimalAverageRT1]; % ArchT and Control reaction times
+    ArchT_RT2 = [SummaryDataOutputArchT5.AnimalAverageRT2];
+    Control_RT1 = [SummaryDataOutputControl5.AnimalAverageRT1];
+    Control_RT2 = [SummaryDataOutputControl5.AnimalAverageRT2];
     diff_RT_ArchT = ArchT_RT2 - ArchT_RT1; % reaction time difference per session
     diff_RT_Ctrl = Control_RT2 - Control_RT1;
     
@@ -601,10 +637,10 @@ if optoinh
     boxstat(ArchT_RT1, ArchT_RT2, 'AchTT1', 'ArchTT2', 0.05, 'paired') % Reaciton time in ArchT animals
     
     % Plot lick rates to cue1 and cue2 (control and ArchT)
-    Control_LR1 = [SummaryDataOutputControl.AnimalAverageT1]; % Control animals' lick rate for cue1
-    Control_LR2 = [SummaryDataOutputControl.AnimalAverageT2]; % Control animals' lick rate for cue2
-    ArchT_LR1 = [SummaryDataOutputArchT.AnimalAverageT1]; % ArchT animals' lick rate for cue1
-    ArchT_LR2 = [SummaryDataOutputArchT.AnimalAverageT2]; % ArchT animals' lick rate for cue2
+    Control_LR1 = [SummaryDataOutputControl5.AnimalAverageT1]; % Control animals' lick rate for cue1
+    Control_LR2 = [SummaryDataOutputControl5.AnimalAverageT2]; % Control animals' lick rate for cue2
+    ArchT_LR1 = [SummaryDataOutputArchT5.AnimalAverageT1]; % ArchT animals' lick rate for cue1
+    ArchT_LR2 = [SummaryDataOutputArchT5.AnimalAverageT2]; % ArchT animals' lick rate for cue2
     
     % Plot control lick rate bar graph
     figure;
@@ -621,6 +657,38 @@ if optoinh
     % Statistical comparison of lick rates
     boxstat(Control_LR1, Control_LR2, 'ControlT1', 'ControlT2', 0.05, 'paired')
     boxstat(ArchT_LR1, ArchT_LR2, 'AchTT1', 'ArchTT2', 0.05, 'paired')
+    
+    % Statistical comparions of lick rates between groups
+    boxstat(Control_LR1,ArchT_LR1,'Control','ArchT',0.05)
+    setmyplot_balazs
+    ylim([0,1.5])
+    ylabel('Lick rate in Cue1 (Hz)')
+    hold on
+    scatter(ones(1,length(Control_LR1)),Control_LR1)
+    scatter(ones(1,length(ArchT_LR1))*2,ArchT_LR1)
+    
+    boxstat(Control_LR2,ArchT_LR2,'Control','ArchT',0.05)
+    setmyplot_balazs
+    ylim([0,1.5])
+    ylabel('Lick rate in Cue2 (Hz)')
+    hold on
+    scatter(ones(1,length(Control_LR2)),Control_LR2)
+    scatter(ones(1,length(ArchT_LR2))*2,ArchT_LR2)
+    
+    % Statistical comparions of reaction times between groups
+    boxstat(Control_RT1,ArchT_RT1,'Control','ArchT',0.05)
+    setmyplot_balazs
+    ylabel('Reaction Time in Cue1 (s)')
+    hold on
+    scatter(ones(1,length(Control_RT1)),Control_RT1)
+    scatter(ones(1,length(ArchT_RT1))*2,ArchT_RT1)
+    
+    boxstat(Control_RT2,ArchT_RT2,'Control','ArchT',0.05)
+    setmyplot_balazs
+    ylabel('Reaction Time in Cue2 (s)')
+    hold on
+    scatter(ones(1,length(Control_RT2)),Control_RT2)
+    scatter(ones(1,length(ArchT_RT2))*2,ArchT_RT2)
     
     % Statistical comparison of lick rate differences
     Control_diff = Control_LR1-Control_LR2;
@@ -673,6 +741,13 @@ if optoinh
     
     resdir_box_avg = fullfile(resdir_box, 'BoxPlots_06_1');
     lick_boxplot_average(SummaryDataOutputControl, SummaryDataOutputArchT, resdir_box_avg)
+    
+    % Stage 2 (before punishment) analysis
+    root = 'G:\HDB_PV\_ArchT_pavlovian\Analysis\Data2Use_b';
+    resdir_box = fullfile(resdir, 'Opto_inhibition_rew2'); % Results directory
+    [SummaryDataOutputArchT2, Hit_psth_ArchT, FA_psth_ArchT] = lick_psth_summary_PV([], root, resdir_box, 'ArchT','TrialType');
+    [SummaryDataOutputControl2, Hit_psth_Control, FA_psth_Control] = lick_psth_summary_PV([], root, resdir_box, 'Control','TrialType');   
+    
 end
 
 % -------------------------------------------------------------------------
