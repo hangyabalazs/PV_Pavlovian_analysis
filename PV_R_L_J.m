@@ -1,7 +1,7 @@
 function PV_R_L_J(cellids, resdir, spec, issave)
-%PV_R_L_J(CELLIDS, RESDIR, ISSAVE) Latency and jitter CDF of event evoked
+%PV_R_L_J(CELLIDS, RESDIR, SPEC, ISSAVE) Latency and jitter CDF of event evoked
 %spiking.
-%   PV_R_L_J(CELLIDS,RESDIR, ISSAVE) calculates latency and jitter for
+%   PV_R_L_J(CELLIDS,RESDIR, SPEC ISSAVE) calculates latency and jitter for
 %   event evoked spiking of neurons listed in CELLIDS. If CELLIDS is and
 %   empy cell, parvalbumin+ neurons of the current cellbase are
 %   automatically selected. SPEC defines the need for light ('tag'), cue
@@ -70,7 +70,7 @@ switch spec
         evtype = 'trial';
         alignevent = 'DeliverAllFeedback';
         evfilter = 'custom';
-        finput = {'Punishment==1' 'Punishment==2'};
+        finput = {'PunishedTrials==1'};
         win = [-0.02 0.15];
         baselinewin = [-0.02 0];
         testwin = [0 0.15];

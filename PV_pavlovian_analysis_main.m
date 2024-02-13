@@ -1,4 +1,4 @@
-function PV_pavlovian_analysis_main(choosecells, preprocess, behavior, anatomy, recording, fiber_photometry, optogenetics, root_opto, root_FF, root_FF_SOM)
+function PV_pavlovian_analysis_main(choosecells, preprocess, behavior, anatomy, recording, fiber_photometry, optogenetics, root_opto, root_FF, root_FF_shock, root_FF_SOM)
 %PV_PAVLOVIAN_ANALYSIS_MAIN main data analysis funtion of PV-pavlovian project.
 %   PV_PAVLOVIAN_ANALYSIS_MAIN(CHOOSECELLS, RESDIR, PREPROCESS, BEHAVIOR,
 %   ANATOMY, RECORDING, OPTOGENETICS) main data analysis function of in
@@ -93,7 +93,7 @@ latency = recording(4);             % Latency of punishment response
 preprocess_latency = recording(5);  % Data preprocessing
 msplit = recording(6);              % PETH of partitioned by median splint of trials
 ms_preproc = recording(7);          % Data preprocessing
-preproc_prevtrials = recording(8);   % Response based on previous trial outcome
+preproc_prevtrials = recording(8);  % Response based on previous trial outcome
 burst_spikes = recording(9);        % PETH showing burst and single spikes separately
 popclust = recording(10);           % Cluster analysis on the PETHs of the neurons to find group of neurons behaving similar ways
 
@@ -119,6 +119,10 @@ if nargin < 9
 end
 
 if nargin < 10
+    root_FF = 'D:\HDB_PV\Footshock';
+end
+
+if nargin < 11
     root_FF_SOM = 'F:\SOM\Fiber_photometry';
 end
 
@@ -496,14 +500,18 @@ if fiber_photometry
     resdir_FF_MS = fullfile(resdir, 'FF_PETH', 'MS');
     resdir_FF_Hipp = fullfile(resdir, 'FF_PETH', 'Hipp');
      resdir_FF_SOM = fullfile(resdir, 'FF_PETH', 'SOM');
+     resdir_FF_Shock = fullfile(resdir, 'FF_PETH', 'Footshock');
     
     % Aversive stimulus - HDB %
     % first air pufs
     recID_HDB_1stses = [{{'1A2' '211108' 'Ch2'}} {{'1A3' '211105' 'Ch2'}}   {{'1A4' '211109' 'Ch1'}} {{'196HDBHipp1' '211217' 'Ch1'}} {{'1A2HDBMS4' '211230' 'Ch1'}} {{'198HDBMS5' '220102' 'Ch1'}} {{'PVHDBMS6' '220223' 'Ch1'}} {{'PVHDBRSG4' '220223' 'Ch1'}}];
     viewphotometry_avg_PV(recID_HDB_1stses, root_FF, resdir_FF_1stAP, 'isjustfirsttrial', true, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
     viewphotometry_avg_PV(recID_HDB_1stses, root_FF, resdir_FF_1stAP, 'isjustfirsttrial', false, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','#PunishedTrials','Signal','dff_A');
-    % footschock
-    Footshock_avgPSTH_PV 
+    
+    % footschock 
+    recID_footshock = [{{'FS1' '230726' 'Ch1'}} {{'FS2' '230726' 'Ch1'}}  {{'FS4' '230726' 'Ch1'}} {{'FS5' '230726' 'Ch1'}} {{'FS6' '230726' 'Ch1'}}];
+    viewphotometry_avg_PV(recID_footshock, root_FF,  resdir_FF_Shock, 'TriggerEvent','DeliverAllFeedback','SortEvent','TrialStart','Partitions','all','Signal','dff_A');
+
     % fox odor
     viewphotometry_fox_odor([root_FF,'\','Fox_odor'], 'PV') % fox odor
     
@@ -703,14 +711,16 @@ if optoinh
     err2 = std(ArchT_diff)/sqrt(length(ArchT_diff));
     errorbar([1 2], [mean(Control_diff) mean(ArchT_diff)], [err1 err2],[err1 err2])
     
-    %CDF of reaction times
+    % CDF of reaction times
     % Control animals
-    figure; cdfplot(Control_RT1);
+    figure; 
+    cdfplot(Control_RT1);
     hold on
     cdfplot(Control_RT2);
     
     % ArchT animals
-    figure; cdfplot(ArchT_RT1);
+    figure; 
+    cdfplot(ArchT_RT1);
     hold on
     cdfplot(ArchT_RT2);
     
@@ -764,12 +774,12 @@ cue_e = cellids(cueresp == 1);  % activated
 cue_i = cellids(cueresp == -1); % inhibited
 cue_n = cellids(cueresp == 0);  % non-responsive
 
-%reward response
+% Reward response
 rew_e = cellids(rewardresp == 1);  % activated
 rew_i = cellids(rewardresp == -1); % inhibited
 rew_n = cellids(rewardresp == 0);  % non-responsive
 
-%punishment response
+% Punishment response
 pun_e = cellids(punishmentresp == 1);  % activated
 pun_i = cellids(punishmentresp == -1); % inhibited
 pun_n = cellids(punishmentresp == 0);  % non-responsive
@@ -814,7 +824,7 @@ for t = 1:length(cellids)
             if ~isfield(TE, fieldname)
                 TE.(fieldname) = nan(1,NumTrials);
                 for c = 2:NumTrials
-                    if ~isnan(TE.AllReward(c-1)) && TE.Punishment(c) == 1% reward
+                    if ~isnan(TE.AllReward(c-1)) && TE.Punishment(c) == 1 % reward
                         TE.(fieldname)(c) = 1;
                     elseif ~isnan(TE.Punishment(c-1)) && TE.Punishment(c) == 1 % punishment
                         TE.(fieldname)(c) = 2;
@@ -830,11 +840,11 @@ for t = 1:length(cellids)
             if ~isfield(TE, fieldname)
                 TE.(fieldname) = nan(1,NumTrials);
                 for c = 2:NumTrials
-                    if ~isnan(TE.AllReward(c-1)) && TE.Punishment(c) == 2% reward
+                    if ~isnan(TE.AllReward(c-1)) && TE.Punishment(c) == 2 % reward
                         TE.(fieldname)(c) = 1;
                     elseif ~isnan(TE.Punishment(c-1)) && TE.Punishment(c) == 2 % punishment
                         TE.(fieldname)(c) = 2;
-                    elseif ~isnan(TE.Omission(c-1)) && TE.Punishment(c) == 2% omission
+                    elseif ~isnan(TE.Omission(c-1)) && TE.Punishment(c) == 2 % omission
                         TE.(fieldname)(c) = 3;
                     end
                 end
@@ -846,11 +856,11 @@ for t = 1:length(cellids)
             if ~isfield(TE, fieldname)
                 TE.(fieldname) = nan(1,NumTrials);
                 for c = 2:NumTrials
-                    if ~isnan(TE.AllReward(c-1)) && ~isnan(TE.Punishment(c))% reward
+                    if ~isnan(TE.AllReward(c-1)) && ~isnan(TE.Punishment(c)) % reward
                         TE.(fieldname)(c) = 1;
                     elseif ~isnan(TE.Punishment(c-1)) && ~isnan(TE.Punishment(c)) % punishment
                         TE.(fieldname)(c) = 2;
-                    elseif ~isnan(TE.Omission(c-1)) && ~isnan(TE.Punishment(c))% omission
+                    elseif ~isnan(TE.Omission(c-1)) && ~isnan(TE.Punishment(c)) % omission
                         TE.(fieldname)(c) = 3;
                     end
                 end

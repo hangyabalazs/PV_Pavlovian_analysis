@@ -1,4 +1,4 @@
-function [SummaryDataOutput, Hit_allpsth, FA_allpsth] = lick_psth_summary_PV(animals, root, resdir, tag)
+function [SummaryDataOutput, Hit_allpsth, FA_allpsth] = lick_psth_summary_PV(animals, root, resdir, tag, TrialType)
 %LICK_PSTH_SUMMARY_PV  Average lick PETH.
 %   LICK_PSTH_SUMMARY_PV(ANIMALS, ROOT, RESDIR, TAG) plots average lick
 %   PETH (beam break time stamps aligned to an event) for each animal
@@ -53,27 +53,27 @@ end
 WhichStageUserInputString = num2str(WhichStageUserInput); % for naming saved plots later
 
 
-BigData ={};
+BigData = {};
 p = 0; % for populating full_sessions array
 
 for i = 1:length(animals)  % for each animal
     c_animal = animals{i};
 
-    subfolders_gross= dir(fullfile(fullpth,c_animal));
+    subfolders_gross = dir(fullfile(fullpth,c_animal));
     subfolders = subfolders_gross(~ismember({subfolders_gross(:).name},{'.','..'})); % to filter out unwanted elements
     
     % Print folder names to command window.
     sessionIDs = {}; % subfolders
     for k = 1 : length(subfolders)
         fprintf('Sub folder #%d = %s\n', k, subfolders(k).name);
-        sessionIDs{k}=subfolders(k).name;        
+        sessionIDs{k} = subfolders(k).name;        
     end
     
         % all existing session folders within 1 animal's folder:
-    for m= 1:length(sessionIDs)       
-        T=load(fullfile(fullpth,c_animal,sessionIDs{m}, 'TE.mat'));     % The TE file containing the session data is uploaded    
+    for m = 1:length(sessionIDs)       
+        T = load(fullfile(fullpth,c_animal,sessionIDs{m}, 'TE.mat'));     % The TE file containing the session data is uploaded    
 
-        p=p+1;
+        p = p + 1;
         newstruct1 = 'NameOfAnimal';
         newstruct2 = 'SessionName';
         newstruct4 = 'ArchTORControl';
@@ -94,7 +94,7 @@ time = wn(1):dt:wn(2);   % time vector
 StageData = session2stage(BigData, WhichStageUserInput);
 
 if WhichStageUserInput ~= 1
-    [SummaryDataOutput] = lick_boxplot(StageData, root, resdir, WhichStageUserInput, animals);
+    [SummaryDataOutput] = lick_boxplot(StageData, root, resdir, WhichStageUserInput, animals,TrialType);
 end
 
 NumSessions = size(StageData,2);   % number of sessions, columns
@@ -103,7 +103,7 @@ NumSessions = size(StageData,2);   % number of sessions, columns
 for iS = 1:NumSessions
     SN = StageData{iS}.SessionName;
     cellid = {StageData{1,iS}.NameOfAnimal, SN}
-    [spsth_hit, spsth_fa, binrast_hit, binrast_fa] = main(cellid,wn,dt,tag, WhichStageUserInputString, resdir);
+    [spsth_hit, spsth_fa, binrast_hit, binrast_fa] = main(cellid,wn,dt,tag, WhichStageUserInputString, resdir, TrialType);
     Hit_allpsth = [Hit_allpsth; spsth_hit]; 
     FA_allpsth = [FA_allpsth; spsth_fa];
     Hit_allbinrast = [Hit_allbinrast; nanmean(binrast_hit, 1)];
@@ -136,11 +136,11 @@ close(G)
 
 
 % -------------------------------------------------------------------------
-function [spsth_hit, spsth_fa, binrast_hit, binrast_fa] = main(cellid, wn, dt, tag, WhichStageUserInputString, resdir)
+function [spsth_hit, spsth_fa, binrast_hit, binrast_fa] = main(cellid, wn, dt, tag, WhichStageUserInputString, resdir,TrialType)
 
 % Filter input
-filterinput_hit = 'TrialType==1';
-filterinput_fa = 'TrialType==2';
+filterinput_hit = [TrialType,'==1'];
+filterinput_fa = [TrialType,'==2'];
 
 % Calcualte lick PSTH
 [~, spsth_hit, ~, ~, binrast_hit, ~] = ...
@@ -157,11 +157,11 @@ filterinput_fa = 'TrialType==2';
 H = figure;
 viewlick(cellid,'TriggerName','StimulusOn','SortEvent','TrialStart','eventtype','behav',...
     'ShowEvents',{{'StimulusOn' 'StimulusOff'}},...
-    'Partitions','#TrialType','window',wn)
+    'Partitions',['#',TrialType],'window',wn)
 %maximize_figure(H)
 cellidt = [cellid{1} '_' cellid{2}];
-fnm = fullfile(resdir(1:end-13), 'Single plots', [cellidt '_' tag '_Stage' WhichStageUserInputString  '_LICK.fig']);
+fnm = fullfile(resdir, 'Single plots', [cellidt '_' tag '_Stage' WhichStageUserInputString  '_LICK.fig']);
 saveas(H,fnm)
-fnm = fullfile(resdir(1:end-13), 'Single plots', [cellidt '_' tag '_Stage' WhichStageUserInputString  '_LICK.jpg']);
+fnm = fullfile(resdir, 'Single plots', [cellidt '_' tag '_Stage' WhichStageUserInputString  '_LICK.jpg']);
 saveas(H,fnm)
 close(H)

@@ -1,6 +1,6 @@
-function viewphotometry_avg_PV(cellids, root, resdir, varargin)
-%VIEWPHOTOMETRY_AVG   Average PSTH of fiber photometry data.
-%   VIEWPHOTOMETRY_AVG(CELLIDS, RESDIR, VARARGIN) creates an average PSTH
+function [max_resp, mean_resp] =viewphotometry_avg_PV(cellids, root, resdir,  varargin)
+%VIEWPHOTOMETRY_AVG_PV   Average PSTH of PV fiber photometry data.
+%   VIEWPHOTOMETRY_AVG_PV(CELLIDS,ROOT, RESDIR, VARARGIN) creates an average PSTH
 %   of fiber photometry data recorded from sessions listed in CELLIDS and located
 %   in ROOT. PETHs are saved to RESDIR.
 
@@ -12,7 +12,7 @@ function viewphotometry_avg_PV(cellids, root, resdir, varargin)
 
 % Default arguments
 default_args={...
-    'window',               [-3 3];...
+    'window',               [-2 4];...
     'dt',                   0.01;...
     'sigma',                10;...
     'isadaptive'            false;...
@@ -33,9 +33,9 @@ default_args={...
     'PrintCellID',          'on';...
     'PrintCellIDPos',       'bottom-right';...
     'BurstPSTH'             'off';......
+    'isjust1sttrial'        false;
     };
 [g,error] = parse_args(default_args,varargin{:});
-
 
 % Input argument check
 if nargin < 1
@@ -49,17 +49,23 @@ if ~isfolder(resdir)
 end
 
 if strcmp(g.Partitions, '#AllReward') % baseline windows used for normalization
-    bwin = [-3 -2];
+    bwin = [-2 -1];
     twin = 0.6;
     color1 = [0.22 0.78 0.62];
     color2 = [0 0.4 0.4];
 elseif strcmp(g.Partitions, '#Reward') % baseline windows used for normalization
-    bwin = [-3 -2];
+    bwin = [-2 -1];
     twin = 0.7;
     color1 = [0.22 0.78 0.62];
+    color2 = [0 0.4 0.4];
 elseif strcmp(g.Partitions, '#PunishedTrials')
-    bwin = [-3 -2];
+    bwin = [-2 -1];
     twin = 1;
+    color1 = [0.2 0 0];
+    color2 = [1 0.6 0.8];
+elseif strcmp(g.Partitions, '#Punishment')
+    bwin = [-2 -1];
+    twin = 0.5;
     color1 = [0.2 0 0];
     color2 = [1 0.6 0.8];
 elseif strcmp(g.Partitions, '#TrialType')
@@ -67,11 +73,16 @@ elseif strcmp(g.Partitions, '#TrialType')
     twin = 0.5;
     color1 = [0.2 0.6 0.6];
     color2 = [0.4 0 0.2];
+else %if strcmp(g.Partitions, 'all')
+    bwin = [-2 -1];
+    twin = 0.5;
+    color1 = [0.2 0.6 0.6];
+    color2 = [0.4 0 0.2];
 end
 
 % Preallocate
-[psths1, psths1_st, psths2, psths2_st]=deal(nan(length(cellids),72289)); 
-[psths_isos1, psths_isos2]=deal(nan(length(cellids),72289)); 
+[psths1, psths1_st, psths2, psths2_st]=deal(nan(length(cellids),72289));
+[psths_isos1, psths_isos2]=deal(nan(length(cellids),72289));
 [mean1, mean2, mean1_st, mean2_st, maxval1, maxval2]=deal(nan(1,size(cellids,2)));
 
 % Loop through sessions
@@ -97,7 +108,7 @@ for c = 1:length(cellids)
     TE.PunishedTrials = nan(1,length(TE.NTrials));
     TE.PunishedTrials(~isnan(TE.Punishment))=1;
     DATA = load([path filesep 'proF.mat']);
-    TE.Blocknum(TE.Hit~=1)=NaN;
+    %     TE.Blocknum(TE.Hit~=1)=NaN;
     
     % Extracting valid trials
     [COMPTRIALS, TAGS] = partition_trials(TE,g.Partitions);
@@ -160,13 +171,13 @@ for c = 1:length(cellids)
         [fibmean,fibcv,spmat] = perievent(vdisc,DATA.(g.Signal),DATA.sr,g.window,isnorm,g.dt,g.sigma); % peri-event
         [~,~,spmat_isos1] = perievent(vdisc,DATA.(g.isosSignal1),DATA.sr,g.window,isnorm,g.dt,g.sigma); % peri-event
         [~,~,spmat_isos2] = perievent(vdisc,DATA.(g.isosSignal2),DATA.sr,g.window,isnorm,g.dt,g.sigma); % peri-event
-
-    
+        
+        
         [~,inx]=sort(sort_var(valT));
         
         if max(inx)>size(spmat,1)
             delinx = find(inx>size(spmat,1))
-            inx(delinx)=[];
+            inx(delinx) = [];
         end
         
         % Remove big artifacts
@@ -186,7 +197,10 @@ for c = 1:length(cellids)
         end
         inx(isnan(inx))=[]; % Only keep low noise trials
         
-        if iPAR==1
+        if iPAR == 1
+            if g.isjust1sttrial
+                inx = inx(1);
+            end
             psths1(c,:) = nanmean(spmat(inx,:),1);
             mn = nanmean(psths1(c,b_inx));
             sd = nanstd(psths1(c,b_inx));
@@ -194,8 +208,8 @@ for c = 1:length(cellids)
             
             psths_isos1(c,:)= nanmean(spmat_isos1(inx,:),1);
             psths_isos2(c,:)= nanmean(spmat_isos2(inx,:),1);
-
-        elseif iPAR==2
+            
+        elseif iPAR == 2
             psths2(c,:) = nanmean(spmat(inx,:),1);
             psths2_st(c,:) = (psths2(c,:)-mn)/sd; % use the same mean and sd for normalization
         end
@@ -207,21 +221,15 @@ end
 
 tag = g.Partitions;
 
-% Plot
-figure;
-errorshade(time, nanmean(psths1_st,1), nanstd(psths1_st,1)/sqrt(size(psths1_st,1)),...
-    'LineColor',color1,'ShadeColor',color1)
-
 % Save figure
-fnm = fullfile(resdir,[tag '.fig']);
+fnm = fullfile(resdir,[animalID '_' tag '_all.fig']);
 saveas(gcf,fnm)
 set(gcf,'renderer', 'painters')
-fnm = fullfile(resdir,[tag '.eps']);
+fnm = fullfile(resdir,[animalID '_' tag '_all.eps']);
 saveas(gcf,fnm)
-fnm = fullfile(resdir,[tag '.bmp']);
+fnm = fullfile(resdir,[animalID '_' tag '_all.bmp']);
 saveas(gcf,fnm)
 set(gca,'Xlim', [-1 1])
-
 close(gcf)
 
 % Plot isosbestic signals
@@ -242,3 +250,56 @@ fnm = fullfile(resdir,[tag 'isosbestic.eps']);
 saveas(gcf,fnm)
 fnm = fullfile(resdir,[tag 'isosbestic.bmp']);
 saveas(gcf,fnm)
+
+% Plot imagesc
+[m1_c1 m2_c1] = max(psths1(:,24096:36144),[],2);
+[srt Ia] = sort(m1_c1,'descend');   % sort based on FA response
+figure   % plot all FA PSTHs, sorted
+imagesc(time,1:20,psths1_st(Ia,:))
+ax = gca;
+%ax.CLim = [-0.2 0.2];
+colorbar
+set(gca,'Xlim', [-2 3])
+set(gca,'TickDir','out');
+
+% Plot imagesc
+[m1_c2 m2_c2] = max(psths2(:,24096:36144),[],2);
+[srt Ia] = sort(m1_c2,'descend');   % sort based on FA response
+figure   % plot all FA PSTHs, sorted
+imagesc(time,1:20,psths2_st(Ia,:))
+ax = gca;
+%ax.CLim = [-0.2 0.2];
+colorbar
+set(gca,'Xlim', [-2 3])
+set(gca,'TickDir','out');
+
+% Plot
+figure;
+errorshade(time, nanmean(psths1_st,1), nanstd(psths1_st,1)/sqrt(size(psths1_st,1)),...
+    'LineColor',color1,'ShadeColor',color1)
+hold on
+errorshade(time, nanmean(psths2_st,1), nanstd(psths2_st,1)/sqrt(size(psths2_st,1)),...
+    'LineColor',color2,'ShadeColor',color2)
+hold off
+set(gca,'Xlim', [-2 3])
+set(gca,'TickDir','out');
+
+% Calculate mean and max responses
+mean_resp = nan(1,size(psths1,1));
+max_resp = nan(1,size(psths1,1));
+
+for r = 1:length(mean_resp)
+    mean_resp(r) = nanmean(psths1(r,w1_inx:w2_inx));
+    max_resp(r) = max(psths1(r,w1_inx:w2_inx));
+end
+
+% Compare max responses
+figure
+bar([1 2], [mean(m1_c1) mean(m1_c2)]);
+hold on
+plot([1 2], [m1_c1 m1_c2]);
+setmyplot_balazs
+
+% Plot Normalized PSTHs
+figure;
+plot(time, psths1_st)

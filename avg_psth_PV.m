@@ -103,16 +103,16 @@ set(gca,'YLim',[min(mean(psth_R2))-5 max(mean(psth_R1))+5]);
 set(gcf, 'renderer', 'painters')
 
 % Save
-fnm = fullfile(resdir,[responsespec '_average.jpg']);   % jpg
-fnm2 = fullfile(resdir,[responsespec '_average.fig']);   % fig
-fnm3 = fullfile(resdir,[responsespec '_average.mat']);   % full PSTH matrix
+fnm = fullfile(resdir,[responsespec '_average_norm.jpg']);   % jpg
+fnm2 = fullfile(resdir,[responsespec '_average_norm.fig']);   % fig
+fnm3 = fullfile(resdir,[responsespec '_average_norm.mat']);   % full PSTH matrix
 saveas(H,fnm);
 saveas(H,fnm2);
 save(fnm3,'R');
 % close(H)
 
-fnma = fullfile(resdir,[responsespec '_image1.jpg']);   % sorted normalized PSTHs
-fnmb = fullfile(resdir,[responsespec '_image2.jpg']);   % sorted normalized PSTHs
+fnma = fullfile(resdir,[responsespec '_image1_norm.jpg']);   % sorted normalized PSTHs
+fnmb = fullfile(resdir,[responsespec '_image2_norm.jpg']);   % sorted normalized PSTHs
 saveas(Ha,fnma);
 saveas(Hb,fnmb);
 % close(Ha,Hb)

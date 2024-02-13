@@ -45,10 +45,10 @@ numCells = length(pv_cells);
 load(getpref('cellbase','fname'),'CELLIDLIST');
 
 % Preprocess trial events file if the needed variables do no exist
-for p = 1:numCells
-    cell2check = pv_cells{p};   % current cell
-    preproc_TE(cell2check)
-end
+% for p = 1:numCells
+%     cell2check = pv_cells{p};   % current cell
+%     preproc_TE(cell2check)
+% end
 
 % Raster + PSTH
 switch responsespec
@@ -337,14 +337,14 @@ if ~isequal(length(SP.event_stimes{1}),length(TE.(fld{1})))
         'Trial number mismatch between TrialEvents and EVENTSPIKES.')
 end
 
-% Raster plot
+Raster plot
 viewcell2b(cellid,'TriggerName',alignevent,'SortEvent','TrialStart','sigma',sigma,...
     'eventtype','behav','ShowEvents',{{shevent}},'Partitions',partition,'window',wn,'PSTHPlot',false);
 V_handle = gcf;
 maximize_figure
 
 % Peri-event time histogram
-PSTHaxis_handle = findobj(allchild(V_handle),'type','axes','XLim',[0 1],'YLim',[0 1],'Tag','');   % handle for the empty PSTH axes
+% PSTHaxis_handle = findobj(allchild(V_handle),'type','axes','XLim',[0 1],'YLim',[0 1],'Tag','');   % handle for the empty PSTH axes
 [~, ~, ~, ~, ~, stats1] = ...
     ultimate_psth(cellid,'trial',alignevent,wn,...
     'dt',dt,'sigma',sigma,'parts',partition,'isadaptive',0,...
@@ -388,15 +388,16 @@ if issave
     warning('off','MATLAB:Figure:FigureSavedToMATFile')
     save(fnm,'stats1')
 end
+close all
+% close([V_handle, close_handle])
 
-close([V_handle, close_handle])
-
+% -------------------------------------------------------------------------
 function preproc_TE(cellid)
 TE = loadcb(cellid,'TrialEvents');   % load trial events
 NumTrials = TE.NTrials(1);
 if ~isfield(TE, 'RewardedTrials')
     TE.RewardedTrials = nan(1,NumTrials);
-    TE.RewardedTrials(~isnan(TE.AllReward))=1;
+    TE.RewardedTrials(~isnan(TE.Reward))=1;
     
 end
 

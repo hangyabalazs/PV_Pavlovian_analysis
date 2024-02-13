@@ -23,13 +23,22 @@ d1 = d1(:)';   % row vector format
 d2 = d2(:)';
 
 % Box plot
-H = figure;
-boxplot([d1 d2],[zeros(size(d1)) ones(size(d2))],'labels',[{l1} {l2}]);
 switch str
     case 'nonpaired'
+        H = figure;
+        boxplot([d1 d2],[zeros(size(d1)) ones(size(d2))],'labels',[{l1} {l2}]);       
         [Wp, Wh] = ranksum(d1,d2,'alpha',alpha);   % Mann-Whitney U-test
+        setmyplot_balazs
     case 'paired'
         [Wp, Wh] = signrank(d1,d2,'alpha',alpha);   % Wilcoxon signed rank test
+        H = figure;
+        line([ones(size(d1)); ones(size(d2))*2],[d1; d2],'Color',[0.8,0.8,0.8,0.8])
+        hold on
+        bar([1; 2],[nanmean(d1(~isnan(d1)&~isnan(d2))); nanmean(d2(~isnan(d1)&~isnan(d2)))])
+        xlim([0.5,2.5])
+        xticks([1,2])
+        xticklabels({l1,l2})
+        setmyplot_balazs
     otherwise
         error('boxstat:inputArg','Unsupported input argument.')
 end

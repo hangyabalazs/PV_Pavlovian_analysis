@@ -19,17 +19,17 @@ load(filepath);
 
 % a dynamic calculation of the session name, required due to non-uniform
 % naming format of the sessions
-q=strfind(filepath,'_');
-w=strfind(filepath,'.mat');
+q = strfind(filepath,'_');
+w = strfind(filepath,'.mat');
 
-sessionID=filepath(q(end)+1:w);
+sessionID = filepath(q(end)+1:w);
 
 % No. of trials (exclude trial 1 and last trial may not have been completed
 ntrials = SessionData.nTrials;
 
 % Preallocation of space
 % Training session parameters
-[TE.NTrials TE.TrialStart TE.TrialEnd TE.TrialType] = deal(nan(1,ntrials));
+[TE.NTrials TE.TrialStart TE.TrialEnd TE.TrialType,TE.TrialType_AS,TE.TrialType_ANS] = deal(nan(1,ntrials));
 
 % ITI
 TE.ITIBeginning = nan(1,ntrials); % Begining of each ITI
@@ -93,8 +93,8 @@ TE.NeedsSyncCorrection = nan(1,ntrials);
 
 % Animal name
 rawchar = length(filepath);
-Animalname_pre= strfind(filepath,'PVINH');
-Animalname_length=7;
+Animalname_pre = strfind(filepath,'PVINH');
+Animalname_length = 7;
 Animalname = filepath((Animalname_pre(1)):(Animalname_pre(1)+Animalname_length-1));
 
 % Defining variables and parameters trialwise
@@ -114,7 +114,7 @@ end
 
 TE.TrialType = SessionData.TrialTypes; % 1 = Type1, 2 = Type2
 
-%Outcomes
+% Outcomes
 TE.Hit(SessionData.TrialOutcome==1) = 1; % lick + reward
 TE.CorrectRejection(SessionData.TrialOutcome == 4) = 1; % no lick + punishment
 TE.FalseAlarm(SessionData.TrialOutcome == 0) = 1; % lick + punishment
@@ -122,7 +122,7 @@ TE.Miss(SessionData.TrialOutcome == 2) = 1; % no lick + missed reward
 TE.LickOmission(SessionData.TrialOutcome == 5) = 1; % omission + lick
 TE.NoLickOmission(SessionData.TrialOutcome == 3) = 1 ; % omission + no lick
 
-%For partitioning reinforcement
+% For partitioning reinforcement
 for currentTrial = 1:ntrials
     if SessionData.TrialOutcome(currentTrial) ==1 && SessionData.TrialTypes(currentTrial) ==1
         TE.Reward(currentTrial) = 1;
@@ -156,17 +156,30 @@ for currentTrial = 1:ntrials
     
 end
 
+Sinx = find(~isnan(TE.Punishment)) + 1;
+
+if ~isempty(Sinx)
+    Sinx(end) = [];
+    NSinx = find(isnan(TE.Punishment)) + 1;
+    NSinx(end) = [];
+else
+    NSinx = [];
+end
+
+TE.TrialType_AS(Sinx) = TE.TrialType(Sinx);
+TE.TrialType_ANS(NSinx) = TE.TrialType(NSinx);
+
 for currentTrial = 1:ntrials
     if SessionData.TrialOutcome(currentTrial) ==1 || SessionData.TrialOutcome(currentTrial)==2
-        TE.Feedback(currentTrial) = 1; %reward
+        TE.Feedback(currentTrial) = 1; % reward
     elseif SessionData.TrialOutcome(currentTrial)==0 || SessionData.TrialOutcome(currentTrial)==4
-        TE.Feedback(currentTrial) = 2; %punishment
+        TE.Feedback(currentTrial) = 2; % punishment
     elseif SessionData.TrialOutcome(currentTrial)==5 || SessionData.TrialOutcome(currentTrial)==3
-        TE.Feedback(currentTrial) = 3; %omission
+        TE.Feedback(currentTrial) = 3; % omission
     end
 end
 
-%Stimulus
+% Stimulus
 for currentTrial = 1:ntrials
     if isfield(SessionData.RawEvents.Trial{1,currentTrial}.States,'StartStimulus')   % free water trials don't have these
         TE.StimulusOn(1,currentTrial) = SessionData.RawEvents.Trial{1,currentTrial}.States.StartStimulus(1:1);
@@ -176,7 +189,7 @@ for currentTrial = 1:ntrials
         TE.LEDOff{1,currentTrial} = SessionData.RawEvents.Trial{1, currentTrial}.States.NoLick(:,2);
     end
     
-    %DeliverFeedback
+    % DeliverFeedback
     if isfield(SessionData.RawEvents.Trial{1,currentTrial}.States,'StartStimulus')   % free water trials don't have these
         if SessionData.TrialOutcome(currentTrial) == 4 || SessionData.TrialOutcome(currentTrial) == 0 % lick& no lick punishment
             TE.DeliverFeedback(currentTrial) = SessionData.RawEvents.Trial{1, currentTrial}.States.Punish(1:1) ;
@@ -188,7 +201,7 @@ for currentTrial = 1:ntrials
             TE.DeliverFeedback(currentTrial) = SessionData.RawEvents.Trial{1, currentTrial}.States.PostUS(1:1);
         end
         
-        %DeliverAllFeedback
+        % DeliverAllFeedback
         if SessionData.TrialOutcome(currentTrial) == 4 || SessionData.TrialOutcome(currentTrial) == 0  %punishment
             TE.DeliverAllFeedback(currentTrial) = SessionData.RawEvents.Trial{1, currentTrial}.States.Punish(1:1) ;
         elseif SessionData.TrialOutcome(currentTrial) == 1 %lick reward
@@ -207,7 +220,7 @@ for currentTrial = 1:ntrials
     
 end
 
-%Reaction
+% Reaction
 for currentTrial = 20:(ntrials-1)
     if SessionData.TrialOutcome(currentTrial) == 1
         TE.LickIn{1, currentTrial} = SessionData.RawEvents.Trial{1, currentTrial}.Events.Port1In;% breaking the beam of the water port in headfixed protocol
@@ -243,7 +256,6 @@ for currentTrial = 1:ntrials
         TE.NeedsSyncCorrection(currentTrial) = 1;
     end
 end
-
 TE = shortenTE(TE,isnan(TE.FreeWaterTrial));  % skip free water trials for now - not trivial to sync (no TTLs)
 
 % Stimulus settings
@@ -266,7 +278,6 @@ if ifsave == 1
     save([fileparts(filepath) filesep savename3],'-struct','TE')
 end
 disp('TE analysis complete')
-
 
 % -------------------------------------------------------------------------
 function TE2 = shortenTE(TE2,shinx)
